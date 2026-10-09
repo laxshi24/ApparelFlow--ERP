@@ -2,7 +2,8 @@
 import "dotenv/config";
 import { runMigrations } from "../src/lib/database/migrate";
 
-const url = process.env.DATABASE_URL;
+// Prefer a direct (non-pooled) connection for DDL when provided, e.g. Neon DATABASE_URL_UNPOOLED.
+const url = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
 if (!url) {
   console.error("DATABASE_URL is not set. Copy .env.example to .env.");
   process.exit(1);
