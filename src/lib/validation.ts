@@ -1,5 +1,17 @@
 import type { z } from "zod";
-import { ValidationError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Route ids that are not UUIDs can never exist: answer 404 without touching the database. */
+export function parseId(id: string, resource = "Resource"): string {
+  if (!UUID_RE.test(id)) throw new NotFoundError(`${resource} not found`);
+  return id.toLowerCase();
+}
+
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
 
 export function parseOrThrow<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
   const result = schema.safeParse(input);

@@ -39,7 +39,7 @@ async function LoginContent({ searchParams }: { searchParams: PageProps<"/login"
   const demo = getDemoConfig();
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <Card>
         <CardBody className="space-y-4 py-6">
           <h2 className="text-lg font-semibold text-ink">Sign in to your account</h2>

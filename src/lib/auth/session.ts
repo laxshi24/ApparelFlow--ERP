@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/database/client";
 import { sessions, users, type UserRole } from "@/lib/database/schema";
 import { env } from "@/lib/env";
@@ -34,7 +34,7 @@ export async function createSession(userId: string): Promise<{ token: string; ex
   // Opportunistic cleanup of this user's expired sessions.
   await db()
     .delete(sessions)
-    .where(and(eq(sessions.userId, userId), lt(sessions.expiresAt, new Date())));
+    .where(and(eq(sessions.userId, userId), lt(sessions.expiresAt, sql`now()`)));
   return { token, expiresAt };
 }
 
@@ -45,7 +45,7 @@ export async function validateSessionToken(token: string | undefined | null): Pr
     .select({ id: users.id, email: users.email, fullName: users.fullName, role: users.role })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date())))
+    .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, sql`now()`)))
     .limit(1);
   return row ?? null;
 }
