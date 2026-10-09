@@ -10,6 +10,7 @@ import { Alert, PageSkeleton } from "@/components/ui/feedback";
 import { getOrderDetail } from "@/features/cutting-orders/server/order-queries";
 import { ComponentCountsTable } from "@/features/cutting-orders/ui/component-counts-table";
 import { OrderSummary } from "@/features/cutting-orders/ui/order-summary";
+import { RecutForm } from "@/features/cutting-orders/ui/recut-form";
 import { DecisionHistory } from "@/features/verification/ui/decision-history";
 import { requirePageUser } from "@/lib/auth/guards";
 import { can } from "@/lib/auth/permissions";
@@ -89,6 +90,18 @@ async function OrderDetailContent({
               {order.sewing && `started by ${order.sewing.startedByName} at ${formatDateTime(order.sewing.startedAt)}`}
             </span>
           </Alert>
+        )}
+
+        {order.status === "REJECTED" && can(user.role, "orders:recut") && (
+          <Card className="border-warn-line">
+            <CardHeader
+              title="Correct or re-cut this batch"
+              description="Submitting a re-cut sends the batch back to the verification queue as a new attempt."
+            />
+            <CardBody>
+              <RecutForm orderId={order.id} orderNo={order.orderNo} fabricRollId={order.fabricRollId} actualFabricYds={order.actualFabricYds} />
+            </CardBody>
+          </Card>
         )}
 
         <Card>
