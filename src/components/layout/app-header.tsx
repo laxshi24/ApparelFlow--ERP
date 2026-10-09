@@ -30,8 +30,8 @@ export async function AppHeader() {
         <nav aria-label="Main" className="order-last -mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 lg:order-none lg:mx-0 lg:w-auto lg:flex-1 lg:px-0">
           <NavLinks items={items} />
         </nav>
-        <div className="ml-auto flex flex-wrap items-center gap-3 lg:ml-0">
-          <div className="text-right leading-tight">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:ml-auto sm:w-auto sm:justify-end lg:ml-0">
+          <div className="leading-tight sm:text-right">
             <p className="text-sm font-semibold">{user.fullName}</p>
             <p className="text-xs text-slate-300">{ROLE_LABELS[user.role]}</p>
           </div>

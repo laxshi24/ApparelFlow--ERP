@@ -161,9 +161,10 @@ export function VerificationTerminal({
       )}
 
       <div className="overflow-x-auto rounded-md border border-line">
-        <table className="w-full min-w-[44rem] text-sm">
+        {/* Table on desktop; on phones each row reflows into a 2-column card so inputs never scroll off-screen. */}
+        <table className="w-full text-sm md:min-w-[44rem]">
           <caption className="sr-only">Physical component counts for {orderNo}</caption>
-          <thead className="bg-neutral-bg text-left text-ink">
+          <thead className="bg-neutral-bg text-left text-ink max-md:sr-only">
             <tr>
               <th scope="col" className="px-3 py-2 font-semibold">Component</th>
               <th scope="col" className="px-3 py-2 text-right font-semibold">Expected</th>
@@ -172,19 +173,29 @@ export function VerificationTerminal({
               <th scope="col" className="px-3 py-2 font-semibold">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-line max-md:block">
             {rows.map((r, index) => {
               const inputId = `count-${r.item.id}`;
               const errorId = `${inputId}-error`;
               const variance = r.qty === null ? null : r.qty - r.item.expectedQty;
               return (
-                <tr key={r.item.id} className={cn(r.light === "RED" && "bg-bad-bg", r.light === "YELLOW" && "bg-warn-bg")}>
-                  <th scope="row" className="px-3 py-2 text-left font-medium text-ink">
+                <tr
+                  key={r.item.id}
+                  className={cn(
+                    "max-md:grid max-md:grid-cols-[minmax(0,1fr)_9rem] max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:p-3",
+                    r.light === "RED" && "bg-bad-bg",
+                    r.light === "YELLOW" && "bg-warn-bg",
+                  )}
+                >
+                  <th scope="row" className="px-3 py-2 text-left font-medium text-ink max-md:col-span-2 max-md:p-0">
                     <label htmlFor={inputId}>{r.item.componentName}</label>
                     <span className="block text-xs font-normal text-ink-muted">×{r.item.piecesPerGarment} per garment</span>
                   </th>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">{formatInt(r.item.expectedQty)}</td>
-                  <td className="px-3 py-2 align-top">
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink max-md:p-0 max-md:text-left">
+                    <span className="block text-xs font-normal text-ink-muted md:hidden">Expected</span>
+                    {formatInt(r.item.expectedQty)}
+                  </td>
+                  <td className="px-3 py-2 align-top max-md:p-0">
                     <input
                       ref={(el) => {
                         inputs.current[index] = el;
@@ -214,10 +225,11 @@ export function VerificationTerminal({
                       </p>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink">
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-ink max-md:p-0 max-md:text-left">
+                    <span className="block text-xs font-normal text-ink-muted md:hidden">Variance</span>
                     {variance === null ? "—" : variance > 0 ? `+${formatInt(variance)}` : variance < 0 ? `−${formatInt(-variance)}` : "0"}
                   </td>
-                  <td className="px-3 py-2" aria-live="polite">
+                  <td className="px-3 py-2 max-md:p-0" aria-live="polite">
                     <TrafficLightBadge status={r.light} size="sm" />
                   </td>
                 </tr>
@@ -262,7 +274,7 @@ export function VerificationTerminal({
         </Alert>
       )}
 
-      <div className="flex flex-wrap justify-end gap-3 border-t border-line pt-4">
+      <div className="flex flex-col-reverse gap-3 border-t border-line pt-4 sm:flex-row sm:justify-end">
         <Button variant="danger" onClick={() => setDialog("reject")} disabled={deciding}>
           <XCircle aria-hidden className="size-4" /> Reject batch
         </Button>

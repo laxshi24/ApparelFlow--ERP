@@ -122,7 +122,7 @@ async function OrdersContent({ searchParams }: { searchParams: PageProps<"/order
                 {orders.map((o) => (
                   <tr key={o.id} className="hover:bg-neutral-bg">
                     <td className="px-4 py-3">
-                      <Link href={`/orders/${o.id}`} className="font-mono font-semibold text-brand underline-offset-2 hover:underline">
+                      <Link href={`/orders/${o.id}`} className="whitespace-nowrap font-mono font-semibold text-brand underline-offset-2 hover:underline">
                         {o.orderNo}
                       </Link>
                       {o.currentAttempt > 1 && <span className="ml-2 text-xs font-semibold text-ink-muted">Re-cut #{o.currentAttempt - 1}</span>}
