@@ -10,7 +10,7 @@ import path from "node:path";
 
 const port = Number(process.env.LOCAL_PG_PORT ?? 54329);
 const dataDir = path.resolve(process.cwd(), ".data", "pg");
-const databases = ["apparelflow", "apparelflow_test"];
+const databases = ["apparelflow", "apparelflow_test", "apparelflow_e2e"];
 
 async function main() {
   const pg = new EmbeddedPostgres({

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: apparelflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway CI credentials for the ephemeral service container — not secrets.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow_test
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow_e2e
+      DEMO_MODE: "true"
+      DEMO_PASSWORD: ci-demo-password-2026
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create test databases
+        run: |
+          psql postgres://postgres:postgres@localhost:5432/postgres -c "CREATE DATABASE apparelflow_test"
+          psql postgres://postgres:postgres@localhost:5432/postgres -c "CREATE DATABASE apparelflow_e2e"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Migrations apply cleanly and seed is idempotent
+        run: npm run db:setup && npm run db:seed
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Integration tests (real PostgreSQL)
+        run: npm run test:integration
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests (production build)
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

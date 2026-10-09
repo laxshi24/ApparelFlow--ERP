@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { unstable_rethrow } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { AppError, type ApiErrorBody } from "@/lib/errors";
 import { logger, serializeError } from "@/lib/logger";
@@ -76,6 +77,9 @@ export function apiHandler<C>(handler: Handler<C>): Handler<C> {
       response.headers.set("cache-control", "no-store");
       return response;
     } catch (err) {
+      // Next.js signals (prerender bail-out on request.cookies, redirect, notFound) are control flow,
+      // not failures: swallowing them would turn a dynamic route into a logged/prerendered 500.
+      unstable_rethrow(err);
       if (err instanceof AppError) {
         if (err.status >= 500) logger.error("api.error", { requestId, ...serializeError(err) });
         return errorResponse(err, requestId);
