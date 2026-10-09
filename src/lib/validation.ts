@@ -13,6 +13,16 @@ export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
+/** First issue per top-level field — the most fundamental message (e.g. "required" before "format"). */
+export function firstIssuePerField(issues: readonly { path: readonly PropertyKey[]; message: string }[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const issue of issues) {
+    const key = String(issue.path[0] ?? "");
+    result[key] ??= issue.message;
+  }
+  return result;
+}
+
 export function parseOrThrow<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
   const result = schema.safeParse(input);
   if (!result.success) {

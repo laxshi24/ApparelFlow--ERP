@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import { describedBy, Field, Input } from "@/components/ui/form";
 import { ApiClientError, apiFetch } from "@/lib/http/client";
+import { firstIssuePerField } from "@/lib/validation";
 import { loginSchema } from "../schemas/login.schema";
 
 type LoginResponse = { home: string };
@@ -21,7 +22,7 @@ export function useLogin(next: string | null) {
     setError(null);
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setFieldErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])));
+      setFieldErrors(firstIssuePerField(parsed.error.issues));
       return;
     }
     setFieldErrors({});
