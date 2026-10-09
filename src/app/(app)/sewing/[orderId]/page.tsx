@@ -12,6 +12,8 @@ import { OrderSummary } from "@/features/cutting-orders/ui/order-summary";
 import { getSewingOrder } from "@/features/sewing-queue/server/sewing-queries";
 import { StartAssemblyButton } from "@/features/sewing-queue/ui/start-assembly-button";
 import { DecisionHistory } from "@/features/verification/ui/decision-history";
+import { getOrderTimeline } from "@/features/audit/server/audit-queries";
+import { OrderTimeline } from "@/features/audit/ui/order-timeline";
 import { requirePageUser } from "@/lib/auth/guards";
 import { NotFoundError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
@@ -37,6 +39,7 @@ async function SewingOrderContent({ params }: { params: PageProps<"/sewing/[orde
     if (err instanceof NotFoundError) notFound();
     throw err;
   });
+  const timeline = await getOrderTimeline(order.id);
   const approval = order.decisions.filter((d) => d.decision === "APPROVED").at(-1);
 
   return (
@@ -91,6 +94,12 @@ async function SewingOrderContent({ params }: { params: PageProps<"/sewing/[orde
           <CardHeader title="Verification audit" />
           <CardBody>
             <DecisionHistory decisions={order.decisions} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title="Order timeline" description="Every recorded event, oldest first." />
+          <CardBody>
+            <OrderTimeline events={timeline} />
           </CardBody>
         </Card>
       </div>

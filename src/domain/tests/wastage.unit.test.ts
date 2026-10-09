@@ -24,6 +24,32 @@ describe("fabric wastage", () => {
     expect(r.exceedsCap).toBe(false);
   });
 
+  it("rounds exact halves away from zero (regression: double rounding gave -4.97 for -4.975%)", () => {
+    // 400 × 1.1 = 440 yd expected; 418.11 yd used → exactly -4.975 %
+    expect(calculateWastage({ targetQty: 400, stdFabricYards: 1.1, actualFabricYds: 418.11, wastageCapPct: 8 }).wastagePct).toBe(-4.98);
+    // 2.225 % → 2.23
+    expect(calculateWastage({ targetQty: 400, stdFabricYards: 1, actualFabricYds: 408.9, wastageCapPct: 8 }).wastagePct).toBe(2.23);
+  });
+
+  it("matches exact BigInt arithmetic on a sample of inputs", () => {
+    const exact = (a: bigint, e: bigint) => {
+      const num = (a - e) * 10_000n; // hundredths of a percent, times e
+      const sign = num < 0n ? -1 : 1;
+      const abs = num < 0n ? -num : num;
+      const rounded = (abs * 2n + e) / (2n * e); // floor(abs/e + 1/2)
+      return (sign * Number(rounded)) / 100 || 0;
+    };
+    for (const std of [110, 180, 125, 333]) {
+      for (let qty = 1; qty <= 500; qty += 7) {
+        const e = qty * std;
+        for (let a = Math.max(0, e - 2500); a <= e + 2500; a += 3) {
+          const got = calculateWastage({ targetQty: qty, stdFabricYards: std / 100, actualFabricYds: a / 100, wastageCapPct: 5 }).wastagePct;
+          if (got !== exact(BigInt(a), BigInt(e))) throw new Error(`qty=${qty} std=${std} actual=${a}: got ${got}`);
+        }
+      }
+    }
+  });
+
   it("rejects invalid inputs instead of dividing by zero", () => {
     expect(() => calculateWastage({ targetQty: 0, stdFabricYards: 1.8, actualFabricYds: 1, wastageCapPct: 5 })).toThrow();
     expect(() => calculateWastage({ targetQty: 1, stdFabricYards: 0, actualFabricYds: 1, wastageCapPct: 5 })).toThrow();

@@ -15,6 +15,13 @@
       "when": 1791526118270,
       "tag": "0001_audit_immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791528301709,
+      "tag": "0002_audit_event_sequence",
+      "breakpoints": true
     }
   ]
 }

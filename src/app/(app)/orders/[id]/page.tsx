@@ -12,6 +12,8 @@ import { ComponentCountsTable } from "@/features/cutting-orders/ui/component-cou
 import { OrderSummary } from "@/features/cutting-orders/ui/order-summary";
 import { RecutForm } from "@/features/cutting-orders/ui/recut-form";
 import { DecisionHistory } from "@/features/verification/ui/decision-history";
+import { getOrderTimeline } from "@/features/audit/server/audit-queries";
+import { OrderTimeline } from "@/features/audit/ui/order-timeline";
 import { requirePageUser } from "@/lib/auth/guards";
 import { can } from "@/lib/auth/permissions";
 import { NotFoundError } from "@/lib/errors";
@@ -43,6 +45,7 @@ async function OrderDetailContent({
     if (err instanceof NotFoundError) notFound();
     throw err;
   });
+  const timeline = await getOrderTimeline(order.id);
   const { created } = await searchParams;
   const latestDecision = order.decisions.at(-1);
 
@@ -128,6 +131,12 @@ async function OrderDetailContent({
           <CardHeader title="Verification decisions" description="Append-only record of every approval and rejection." />
           <CardBody>
             <DecisionHistory decisions={order.decisions} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title="Order timeline" description="Every recorded event, oldest first." />
+          <CardBody>
+            <OrderTimeline events={timeline} />
           </CardBody>
         </Card>
       </div>

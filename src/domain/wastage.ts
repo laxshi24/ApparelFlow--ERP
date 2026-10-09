@@ -32,8 +32,11 @@ export function calculateWastage(input: {
   if (expected === 0) throw new RangeError("Expected fabric cannot be zero");
   const actual = toHundredths(actualFabricYds);
 
-  const raw = ((actual - expected) * 100) / expected;
-  const wastagePct = (Math.sign(raw) * Math.round(Math.abs(raw) * 100)) / 100 || 0;
+  // Percentage in hundredths of a percent, from ONE division of exact integers. IEEE division is
+  // correctly rounded, so an exact half (e.g. -497.5) stays exact and rounds half away from zero.
+  // (Dividing first and then multiplying by 100 double-rounds and mis-rounds values like -4.975%.)
+  const scaled = ((actual - expected) * 10_000) / expected;
+  const wastagePct = (Math.sign(scaled) * Math.round(Math.abs(scaled))) / 100 || 0;
 
   return {
     expectedFabricYds: expected / 100,

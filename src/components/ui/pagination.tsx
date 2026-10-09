@@ -8,11 +8,13 @@ export function Pagination({
   pageSize,
   total,
   hrefForPage,
+  noun = "items",
 }: {
   page: number;
   pageSize: number;
   total: number;
   hrefForPage: (page: number) => string;
+  noun?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (pages <= 1) return null;
@@ -21,7 +23,7 @@ export function Pagination({
   return (
     <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-ink-muted">
-        Page <strong className="text-ink">{page}</strong> of <strong className="text-ink">{pages}</strong> · {total} orders
+        Page <strong className="text-ink">{page}</strong> of <strong className="text-ink">{pages}</strong> · {total} {noun}
       </p>
       <div className="flex gap-2">
         <Link href={hrefForPage(page - 1)} aria-disabled={page <= 1} tabIndex={page <= 1 ? -1 : undefined} className={cn(linkClasses, page <= 1 && disabled)}>

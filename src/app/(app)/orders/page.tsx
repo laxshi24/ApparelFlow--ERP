@@ -148,7 +148,7 @@ async function OrdersContent({ searchParams }: { searchParams: PageProps<"/order
               </tbody>
             </table>
           </div>
-          <Pagination page={page} pageSize={pageSize} total={total} hrefForPage={(p) => hrefFor(query, p)} />
+          <Pagination noun="orders" page={page} pageSize={pageSize} total={total} hrefForPage={(p) => hrefFor(query, p)} />
         </div>
       )}
     </>

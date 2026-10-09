@@ -8,6 +8,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   index,
   integer,
@@ -253,6 +254,8 @@ export const auditEvents = pgTable(
   "audit_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Monotonic insertion order. Events in one transaction share now(), so seq is the reliable tie-breaker. */
+    seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().notNull(),
     eventType: auditEventType("event_type").notNull(),
     orderId: uuid("order_id").references(() => cuttingOrders.id, { onDelete: "restrict" }),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "restrict" }),
@@ -260,7 +263,8 @@ export const auditEvents = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("audit_events_order_idx").on(t.orderId, t.occurredAt),
+    index("audit_events_order_idx").on(t.orderId, t.seq),
+    unique("audit_events_seq_unique").on(t.seq),
     index("audit_events_type_idx").on(t.eventType, t.occurredAt),
   ],
 );
