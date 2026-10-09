@@ -11,6 +11,7 @@ export type ErrorCode =
   | "BUSINESS_RULE_VIOLATION"
   | "CONFLICT"
   | "CSRF_REJECTED"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export class AppError extends Error {
@@ -66,3 +67,9 @@ export class ConflictError extends AppError {
 }
 
 export type ApiErrorBody = { error: { code: ErrorCode; message: string; details?: unknown } };
+
+export class RateLimitedError extends AppError {
+  constructor(message = "Too many attempts. Please wait and try again.") {
+    super(429, "RATE_LIMITED", message);
+  }
+}
