@@ -32,6 +32,34 @@ export function errorResponse(err: AppError, requestId?: string): Response {
   return Response.json(body, { status: err.status, headers: requestId ? { "x-request-id": requestId } : undefined });
 }
 
+/** PostgreSQL SQLSTATE of a (possibly Drizzle-wrapped) driver error. */
+function pgErrorCode(err: unknown): string | undefined {
+  for (let e: unknown = err, depth = 0; e && depth < 4; e = (e as { cause?: unknown }).cause, depth++) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) return code;
+  }
+  return undefined;
+}
+
+/**
+ * Database integrity rules are the last line of defence. If application checks were ever
+ * bypassed, the constraint/trigger rejection is surfaced as a client error instead of a 500.
+ */
+function mapDatabaseError(err: unknown): AppError | null {
+  switch (pgErrorCode(err)) {
+    case "23505":
+      return new AppError(409, "CONFLICT", "This change conflicts with an existing record (it may already have been processed)");
+    case "23514":
+    case "42501":
+      return new AppError(422, "BUSINESS_RULE_VIOLATION", "This change violates a data integrity rule and was not applied");
+    case "40001":
+    case "40P01":
+      return new AppError(409, "CONFLICT", "A concurrent update was detected; please retry");
+    default:
+      return null;
+  }
+}
+
 type Handler<C> = (request: NextRequest, context: C) => Promise<Response>;
 
 /** Wraps a Route Handler with CSRF checks, consistent error responses and structured logging. */
@@ -51,6 +79,11 @@ export function apiHandler<C>(handler: Handler<C>): Handler<C> {
       if (err instanceof AppError) {
         if (err.status >= 500) logger.error("api.error", { requestId, ...serializeError(err) });
         return errorResponse(err, requestId);
+      }
+      const dbError = mapDatabaseError(err);
+      if (dbError) {
+        logger.warn("api.database_integrity_rejection", { requestId, pgCode: pgErrorCode(err), ...serializeError(err) });
+        return errorResponse(dbError, requestId);
       }
       logger.error("api.unhandled_error", {
         requestId,

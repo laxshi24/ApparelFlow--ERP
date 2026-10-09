@@ -4,7 +4,9 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { apiHandler } from "@/lib/http/api-handler";
 import { parseId, parseOrThrow, readJson } from "@/lib/validation";
 import { createOrderSchema, listOrdersQuerySchema } from "../schemas/order.schema";
+import { recutSchema } from "../schemas/recut.schema";
 import { createCuttingOrder } from "./create-order";
+import { recutOrder } from "./recut-order";
 import { getOrderDetail, listOrders } from "./order-queries";
 
 /** POST /api/orders — Cutting Supervisor only. 201 on create, 200 on idempotent replay. */
@@ -20,6 +22,14 @@ export const listOrdersHandler = apiHandler(async (request: NextRequest) => {
   await requireApiUser(request, "orders:read");
   const query = parseOrThrow(listOrdersQuerySchema, Object.fromEntries(request.nextUrl.searchParams));
   return NextResponse.json(await listOrders(query));
+});
+
+/** POST /api/orders/:id/recut — Cutting Supervisor re-submits a REJECTED batch for a new verification attempt. */
+export const recutOrderHandler = apiHandler(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+  const user = await requireApiUser(request, "orders:recut");
+  const id = parseId((await params).id, "Cutting order");
+  const input = parseOrThrow(recutSchema, await readJson(request));
+  return NextResponse.json({ order: await recutOrder(user, id, input) });
 });
 
 /** GET /api/orders/:id */
