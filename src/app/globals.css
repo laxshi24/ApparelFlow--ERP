@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/*
+ * ApparelFlow design tokens.
+ * The UI is deliberately light-only (`color-scheme: light`): form controls, placeholders
+ * and native dropdowns then always render dark text on light surfaces, regardless of the
+ * operating system theme. All text/background pairs below meet WCAG AA (4.5:1) or better.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-page: #f1f5f9; /* slate-100 */
+  --color-surface: #ffffff;
+  --color-ink: #0f172a; /* slate-900, 17.9:1 on white */
+  --color-ink-muted: #475569; /* slate-600, 7.6:1 on white */
+  --color-line: #cbd5e1; /* slate-300 */
+  --color-line-strong: #64748b; /* slate-500, 4.8:1 — used for input borders (non-text 3:1 min) */
+
+  --color-brand: #1d4ed8; /* blue-700, 6.7:1 on white */
+  --color-brand-hover: #1e40af;
+  --color-brand-ink: #ffffff;
+  --color-header: #0f172a;
+
+  --color-ok: #047857; /* emerald-700 */
+  --color-ok-bg: #ecfdf5;
+  --color-ok-line: #6ee7b7;
+  --color-warn: #92400e; /* amber-800, 7.1:1 on amber-50 */
+  --color-warn-bg: #fffbeb;
+  --color-warn-line: #fcd34d;
+  --color-bad: #b91c1c; /* red-700 */
+  --color-bad-bg: #fef2f2;
+  --color-bad-line: #fca5a5;
+  --color-info: #1e40af;
+  --color-info-bg: #eff6ff;
+  --color-info-line: #93c5fd;
+  --color-neutral-bg: #f1f5f9;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: var(--color-page);
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Inputs: always dark text on white, visible placeholder, clear border. */
+input,
+select,
+textarea {
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+}
+
+::placeholder {
+  color: #64748b; /* slate-500, 4.8:1 on white */
+  opacity: 1;
+}
+
+/* One consistent, highly visible keyboard focus ring. */
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
