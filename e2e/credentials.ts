@@ -1,4 +1,4 @@
-import type { SeedPasswords } from "../src/lib/database/seed";
+import type { SeedPasswords } from "../backend/db/seed";
 
 /** Per-role passwords seeded into the throwaway E2E database. */
 export const E2E_PASSWORDS: SeedPasswords = {

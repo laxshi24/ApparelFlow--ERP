@@ -1,0 +1,17 @@
+{
+  "name": "apparelflow-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Next.js frontend workspace. Dependencies are installed at the repository root.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "vercel-build": "tsx ../backend/db/scripts/migrate.ts && next build"
+  },
+  "dependencies": {
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

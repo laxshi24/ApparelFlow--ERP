@@ -2,8 +2,10 @@ import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 const alias = {
-  "@": path.resolve(import.meta.dirname, "src"),
-  "server-only": path.resolve(import.meta.dirname, "src/test/server-only-stub.ts"),
+  "@frontend": path.resolve(import.meta.dirname, "frontend"),
+  "@backend": path.resolve(import.meta.dirname, "backend"),
+  "@shared": path.resolve(import.meta.dirname, "shared"),
+  "server-only": path.resolve(import.meta.dirname, "backend/tests/helpers/server-only-stub.ts"),
 };
 
 export default defineConfig({
@@ -14,7 +16,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["src/**/*.unit.test.ts"],
+          include: ["backend/tests/unit/**/*.unit.test.ts"],
         },
       },
       {
@@ -22,9 +24,9 @@ export default defineConfig({
         test: {
           name: "integration",
           environment: "node",
-          include: ["src/**/*.int.test.ts"],
-          globalSetup: ["src/test/global-setup.ts"],
-          setupFiles: ["src/test/integration-setup.ts"],
+          include: ["backend/tests/integration/**/*.int.test.ts"],
+          globalSetup: ["backend/tests/helpers/global-setup.ts"],
+          setupFiles: ["backend/tests/helpers/integration-setup.ts"],
           // One shared PostgreSQL test database: run files serially for deterministic state.
           fileParallelism: false,
           testTimeout: 30_000,

@@ -19,6 +19,11 @@ with shell access, the local filesystem and a headless Chromium (Playwright) for
   one slice → test → fix → commit → report honestly).
 - The agent was instructed to work in **vertical slices** and to commit each slice atomically; the git
   history mirrors that order.
+- After review, the candidate asked for a conventional `frontend/` + `backend/` (routes, controllers,
+  middleware, services, db, tests) layout, removal of the demo-credential panel, distinct per-user
+  credentials, and a fix for "login/logout only work after a refresh". The agent moved the files with
+  `git mv` (history preserved), rewrote imports with a script, and re-ran the full unit, integration and
+  E2E suites against a production build of the new layout.
 - Before writing Next.js code the agent read the documentation bundled with the installed framework
   (`node_modules/next/dist/docs`), because Next.js 16 changed APIs (`proxy.ts` replaces middleware,
   Cache Components require `<Suspense>` around session reads, `params` are Promises). This avoided writing
@@ -31,7 +36,7 @@ with shell access, the local filesystem and a headless Chromium (Playwright) for
 
 ## 2. Flawed / Broken AI Code
 
-Each item below is a real defect produced by the AI during development, with how it was detected.
+Each item below is a real defect produced by the AI during development (13 so far), with how it was detected.
 
 | # | Defect (AI-written) | Impact | How it was caught | Fix |
 |---|---|---|---|---|
@@ -46,6 +51,8 @@ Each item below is a real defect produced by the AI during development, with how
 | 9 | Sewing-queue test did not actually prove the `WHERE status = 'VERIFIED'` filter: the inner join on the APPROVED log filtered the same rows, so deleting the filter still passed. | A regression in the explicit filter would have gone unnoticed. | Mutation check (deleted the filter; test stayed green). | New test with a forged orphan APPROVED log on a pending order; fails without the filter. |
 | 10 | E2E login helper waited for the role name to appear — but the login page already lists all role names, so it returned before the login completed. Then a selector matched both the header caption and the persona `<option>`. | 4 flaky/failing E2E tests (test bug, not app bug). | First E2E run. | Wait for navigation away from `/login`, then match the header caption exactly. |
 | 11 | Shell-generated edits: a bash heredoc lost a regex backslash, and a JS `String.replace` replacement containing `` $` `` corrupted a file. | Broken files (caught immediately by the TypeScript compiler). | `tsc` / tsx transform errors. | Switched to direct file writes for code containing escapes/template literals. |
+| 12 | Login and logout used `fetch` + `router.replace()` + `router.refresh()`. With Next.js 16 Cache Components and Partial Prefetching the client router keeps per-session page shells, so after signing out the browser kept showing the cached signed-in page (no sign-in form), and a second sign-in did nothing until a manual refresh. The E2E suite missed it because its helper cleared cookies and navigated with `page.goto` between users. | Users could not log out or switch accounts without refreshing — reported by the candidate. | Candidate's manual testing; reproduced with a scripted browser session that never reloads. | Sign-in/sign-out became Server Actions that set/delete the cookie, `revalidatePath('/', 'layout')` and `redirect()`; new E2E test signs in, out and in as another user in one tab without reloading. |
+| 13 | After moving the Next.js project into `frontend/`, the root `.env` was loaded only in `next.config.ts`; build-time prerender workers did not see `DATABASE_URL`. | Error logs during `next build`; `/api/health` was attempted at build time. | Production build output. | `backend/config/env.ts` loads the repository-root `.env` when variables are missing (never overriding platform variables); the health handler reads the request so it is never prerendered. |
 
 ## 3. Human Refactoring
 
@@ -54,15 +61,15 @@ Each item below is a real defect produced by the AI during development, with how
 
 Suggested structure:
 
-- What you reviewed line by line (e.g. `src/features/verification/server/decide.ts`,
-  `drizzle/0001_audit_immutability.sql`, `src/lib/auth/*`).
+- What you reviewed line by line (e.g. `backend/services/verification/decision.service.ts`,
+  `backend/db/migrations/0001_audit_immutability.sql`, `backend/services/auth/*`).
 - What you changed and why (naming, decomposition, removing duplication, tightening types, etc.).
 - What you deliberately kept from the AI and why.
 
 For reference, refactoring done **by the AI agent** during the build (not human work):
 
 - Extracted `lockOrder` / `assertPendingVerification` / `applyCounts` so counting, approval and rejection
-  share one locking and validation path (`src/features/verification/server/order-lock.ts`).
+  share one locking and validation path (`backend/services/verification/order-lock.ts`).
 - Moved `runMigrations` into a library module shared by the CLI, Vitest and Playwright set-up instead of a
   fragile "is this the main module" check.
 - Introduced `firstIssuePerField`, a shared `Dialog`, `ComponentCountsTable`, `WastageValue` and status
@@ -88,7 +95,7 @@ the business invariant intact anyway.
    equivalents (tested with forged bodies).
 4. **One permission matrix, enforced twice.** Route handlers and pages call the same guards; use cases
    re-check the role; the UI's hidden buttons are explicitly not a control.
-5. **Pure, separately tested domain rules.** Multiplier, traffic light and wastage live in `src/domain` with
+5. **Pure, separately tested domain rules.** Multiplier, traffic light and wastage live in `shared/domain` with
    unit and exact-arithmetic property tests, so UI previews and server decisions use identical logic.
 6. **Tests that test the tests.** HTTP-level integration tests run on real PostgreSQL (no mocks); critical
    defences were mutation-checked; an API-surface test pins every route's HTTP methods so a new write

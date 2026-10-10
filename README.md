@@ -5,7 +5,7 @@ Cutting Supervisors record cut batches, Cutting Verifiers physically count every
 fully counted, shortage-free batches approved by an authenticated verifier ever reach the Sewing Queue.**
 
 > **Live URL:** _not yet deployed — see [Deployment](#deployment)._
-> **Demo accounts:** see [Demo accounts](#demo-accounts).
+> **Sign-in accounts:** see [User accounts](#user-accounts).
 
 ---
 
@@ -13,7 +13,7 @@ fully counted, shortage-free batches approved by an authenticated verifier ever 
 
 - [Core invariant](#core-invariant)
 - [Technology stack](#technology-stack)
-- [Architecture — vertical slices](#architecture--vertical-slices)
+- [Project structure](#project-structure)
 - [Database schema](#database-schema)
 - [Business rules](#business-rules)
 - [Security controls](#security-controls)
@@ -22,7 +22,7 @@ fully counted, shortage-free batches approved by an authenticated verifier ever 
 - [Commands](#commands)
 - [Testing](#testing)
 - [Deployment](#deployment)
-- [Demo accounts](#demo-accounts)
+- [User accounts](#user-accounts)
 - [API reference](#api-reference)
 - [Known limitations](#known-limitations)
 
@@ -51,7 +51,7 @@ blocks it), and deleting the row lock makes the concurrency tests fail.
 |---|---|
 | Framework | Next.js 16 (App Router, Cache Components / Partial Prerendering), React 19, strict TypeScript |
 | UI | Tailwind CSS v4, lucide icons, native `<dialog>` modals, own accessible component kit |
-| API | Next.js Route Handlers (thin) delegating to per-slice server use cases |
+| API | Next.js Route Handlers bound to a backend route table → controllers → services; Server Actions for sign-in/sign-out |
 | Database | PostgreSQL (production: any managed provider, e.g. Neon) |
 | ORM / migrations | Drizzle ORM + drizzle-kit SQL migrations (+ hand-written trigger migration) |
 | Validation | Zod v4 (shared by client forms and server) |
@@ -60,41 +60,52 @@ blocks it), and deleting the row lock makes the concurrency tests fail.
 | Local DB | `embedded-postgres` — real PostgreSQL binaries via npm, no Docker required |
 | CI | GitHub Actions with a PostgreSQL service |
 
-## Architecture — vertical slices
+## Project structure
 
-Code is organised by business capability. Each slice owns its UI, schemas, server use cases, route
-handlers and tests; `src/app` only contains thin routing files that re-export slice handlers/pages.
+The repository is split into a **frontend** (the Next.js app: pages and UI), a **backend** (routes,
+controllers, middleware, services, database, tests) and a small **shared** folder for code both sides
+use (business rules, validation schemas, permissions). It is still one Next.js application and one
+deployment; `frontend/` is the Next.js project directory and compiles `../backend` and `../shared`.
 
 ```
-src/
-  app/                      # Next.js routing only (pages + one-line route.ts re-exports)
-    (app)/                  # authenticated shell: orders, verification, sewing, recipes, audit
-    api/                    # REST endpoints → features/*/server/*.handlers.ts
-    login/
-  features/
-    authentication/         # login/logout/me, demo panel, login throttling
-    recipes/                # catalog, details, server-side multiplier endpoint
-    cutting-orders/         # create (idempotent), list/search, detail read model, re-cut
-    verification/           # counts, approval gatekeeper, rejection, terminal UI
-    sewing-queue/           # verified-only queue, idempotent assembly start
-    audit/                  # order timeline, decision log, wastage reporting
-    health/                 # liveness + DB readiness
-      └─ each: ui/ schemas/ server/ tests/
-  domain/                   # shared pure rules: multiplier, traffic light, wastage (+ unit tests)
-  lib/
-    auth/                   # sessions, password hashing, permission matrix, guards
-    database/               # schema, client, migrate, idempotent seed
-    audit/                  # append-only event writer
-    http/                   # API wrapper (errors, CSRF, logging) + client fetch helper
-    env.ts errors.ts validation.ts logger.ts format.ts
-  components/               # cross-slice UI kit, layout, status badges
-drizzle/                    # SQL migrations (0001 = triggers / state machine)
-e2e/                        # Playwright specs
-scripts/                    # dev-db, migrate, seed
+apparelflow-erp/
+├── frontend/                       # Next.js project (App Router)
+│   ├── app/                        # pages / screens (Next.js "app" router — this is the pages folder)
+│   │   ├── (app)/                  #   signed-in area: orders, verification, sewing, recipes, audit
+│   │   ├── login/                  #   sign-in page
+│   │   └── api/**/route.ts         #   one-line bindings: export const { GET, POST } = apiRoutes[path]
+│   ├── components/                 # ui/ layout/ status/ + screen components per area
+│   │   └── auth/ orders/ recipes/ verification/ sewing/ audit/
+│   ├── lib/                        # browser API client (fetch wrapper)
+│   ├── proxy.ts                    # optimistic redirect to /login (not a security boundary)
+│   ├── next.config.ts
+│   └── package.json                # workspace manifest (deps are installed at the root)
+├── backend/
+│   ├── routes/                     # API route table: path + method → controller (single source of truth)
+│   ├── controllers/                # HTTP layer: parse/validate request → call service → JSON response;
+│   │                               #   auth.actions.ts = sign-in/sign-out Server Actions
+│   ├── middleware/                 # api-handler (errors, CSRF, logging), auth guards (session + RBAC)
+│   ├── services/                   # business logic & queries: auth, recipes, orders, verification, sewing, audit
+│   ├── db/                         # schema, client, migrate, seed, migrations/ (SQL), scripts/ (dev-db, migrate, seed)
+│   ├── config/                     # validated environment variables
+│   ├── utils/                      # structured logger
+│   └── tests/                      # unit/, integration/ (real PostgreSQL), helpers/
+├── shared/                         # used by frontend AND backend (no server-only code)
+│   ├── domain/                     # multiplier, traffic light, wastage
+│   ├── validation/                 # Zod schemas (forms + API)
+│   ├── permissions.ts types.ts errors.ts format.ts
+├── e2e/                            # Playwright end-to-end tests
+├── AI_OPTIMIZATION_REPORT.md
+├── README.md
+└── package.json                    # scripts + all dependencies (npm workspace root)
 ```
 
-Slices were built and committed in order (see `git log`): foundation → auth/RBAC → recipes → orders →
-verification gatekeeper → terminal & re-cut → sewing → audit → E2E/CI → UI polish → docs.
+Request flow for an API call: `frontend/app/api/.../route.ts` → `backend/routes` → `backend/controllers/*`
+(wrapped by `backend/middleware/api-handler`, guarded by `backend/middleware/auth`) → `backend/services/*` →
+`backend/db`. Pages are Server Components that call the same services directly after the same auth guard.
+
+> There is deliberately no `frontend/pages/` folder: in Next.js a `pages/` directory switches on the legacy
+> Pages Router. Screens live in `frontend/app/` (the App Router's pages folder).
 
 ## Database schema
 
@@ -170,7 +181,7 @@ that the batch was verified.
   `SameSite=Lax`, `Secure` (production) cookie; only its SHA-256 is stored; 8 h expiry checked against the
   database clock; logout revokes server-side; session fixation prevented on login; uniform 401 and
   equalised timing for unknown e-mail vs wrong password; DB-backed throttling (10 failures / 15 min).
-- **Authorisation:** one permission matrix (`src/lib/auth/permissions.ts`) enforced in every Route Handler
+- **Authorisation:** one permission matrix (`shared/permissions.ts`) enforced in every Route Handler
   (`requireApiUser`) and page (`requirePageUser`); roles are re-read from the database on every request.
   Navigation hiding is cosmetic only. Use cases re-check the role as defence in depth.
 - **Never trusted from the client:** role, verifier id, timestamps, status, expected quantities, traffic-light
@@ -207,29 +218,35 @@ and skip `npm run db:start`.
 
 ## Environment variables
 
+All variables live in the repository-root `.env` (copy `.env.example`). The app loads it even though the
+Next.js project directory is `frontend/`.
+
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | PostgreSQL connection string (use the provider's pooled URL in production) |
-| `MIGRATION_DATABASE_URL` | no | `DATABASE_URL` | Direct connection for migrations (e.g. Neon unpooled URL) |
+| `MIGRATION_DATABASE_URL` | no | `DATABASE_URL` | Direct connection for migrations and seeding (e.g. Neon unpooled URL) |
 | `DATABASE_POOL_MAX` | no | `5` | Connections per server instance |
 | `SESSION_TTL_HOURS` | no | `8` | Session lifetime (1–72) |
-| `DEMO_MODE` | no | `false` | Show the evaluator demo-credential panel and persona switcher |
-| `DEMO_PASSWORD` | with `DEMO_MODE` / seeding | — | Password set on the three demo users by `db:seed` (≥ 10 chars, avoid `#`) |
+| `SEED_SUPERVISOR_PASSWORD` | for `db:seed` | — | Password set on the Cutting Supervisor account (≥ 10 chars, avoid `#`) |
+| `SEED_VERIFIER_PASSWORD` | for `db:seed` | — | Password set on the Cutting Verifier account |
+| `SEED_SEWING_PASSWORD` | for `db:seed` | — | Password set on the Sewing Supervisor account |
 | `NEXT_PUBLIC_DISPLAY_TIMEZONE` | no | `Asia/Colombo` | Display timezone (storage is always UTC) |
 | `TEST_DATABASE_URL` | for integration tests | — | Dedicated database, **wiped** on every run (must differ from `DATABASE_URL`) |
 | `E2E_DATABASE_URL` | for E2E tests | — | Dedicated database, **wiped** on every run |
+
+The `SEED_*` passwords are only read by the seed script — the running app never needs them.
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Development server |
+| `npm run dev` | Development server (`next dev frontend`) |
 | `npm run build` / `npm start` | Production build / server |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Generate route types + `tsc --noEmit` |
 | `npm run db:start` | Local embedded PostgreSQL |
 | `npm run db:migrate` | Apply migrations |
-| `npm run db:seed` | Idempotent seed (recipes + demo users) |
+| `npm run db:seed` | Idempotent seed (two recipes + three user accounts) |
 | `npm run db:setup` | Migrate + seed |
 | `npm run db:generate` | Generate a migration from schema changes |
 | `npm test` | Unit tests |
@@ -242,64 +259,71 @@ and skip `npm run db:start`.
 Last local run (Windows 11, Node 24, PostgreSQL 18 via embedded-postgres):
 
 - **Unit + integration:** 159 tests in 12 files — all passing (`npm run test:all`).
-- **E2E:** 20 Playwright tests (desktop + mobile viewports, axe WCAG 2.1 AA scans) — all passing
+- **E2E:** 21 Playwright tests (desktop + mobile viewports, axe WCAG 2.1 AA scans) — all passing
   (`npm run test:e2e`).
 
-Integration tests call the real exported Route Handlers with real `NextRequest`s (cookies, `Origin`, JSON
-bodies) against a freshly migrated PostgreSQL database — no mocks of the database or auth.
+Integration tests call the real Route Handlers with real `NextRequest`s (cookies, `Origin`, JSON bodies)
+against a freshly migrated PostgreSQL database — no mocks of the database or auth. They live in
+`backend/tests/integration/`.
 
-| Required test | Where |
+| Required test | Where (`backend/tests/integration/`) |
 |---|---|
-| 1 Verifier approves a fully counted batch | `src/features/verification/tests/gatekeeper.int.test.ts` |
-| 2 RED component blocks approval | gatekeeper › 2/3 |
-| 3 Missing counts block approval | gatekeeper › 2/3 |
-| 4 Rejection without reason rejected by backend | gatekeeper › 4 |
-| 5 Non-verifiers get 403 on approval | gatekeeper › 5/6 |
-| 6 Non-verifiers cannot reject | gatekeeper › 5/6 |
-| 7 Sewing Queue never returns unapproved orders | `src/features/sewing-queue/tests/sewing.int.test.ts` › 7 |
-| 8 Client verifier id / timestamps ignored | gatekeeper › 8 |
-| 9 Duplicate / concurrent approvals consistent | gatekeeper › 9 |
-| 10 Invalid numeric inputs rejected | gatekeeper › 10, `orders.int.test.ts` › validation, `recipes.int.test.ts` |
-| 11 Only supervisors create orders | `src/features/cutting-orders/tests/orders.int.test.ts` |
-| 12 Only sewing supervisors start assembly | sewing › 12 |
+| 1 Verifier approves a fully counted batch | `gatekeeper.int.test.ts` › 1 |
+| 2 RED component blocks approval | `gatekeeper.int.test.ts` › 2/3 |
+| 3 Missing counts block approval | `gatekeeper.int.test.ts` › 2/3 |
+| 4 Rejection without reason rejected by backend | `gatekeeper.int.test.ts` › 4 |
+| 5 Non-verifiers get 403 on approval | `gatekeeper.int.test.ts` › 5/6 |
+| 6 Non-verifiers cannot reject | `gatekeeper.int.test.ts` › 5/6 |
+| 7 Sewing Queue never returns unapproved orders | `sewing.int.test.ts` › 7 |
+| 8 Client verifier id / timestamps ignored | `gatekeeper.int.test.ts` › 8 |
+| 9 Duplicate / concurrent approvals consistent | `gatekeeper.int.test.ts` › 9 |
+| 10 Invalid numeric inputs rejected | `gatekeeper.int.test.ts` › 10, `orders.int.test.ts`, `recipes.int.test.ts` |
+| 11 Only supervisors create orders | `orders.int.test.ts` |
+| 12 Only sewing supervisors start assembly | `sewing.int.test.ts` › 12 |
 | 13 Data survives reloads | `orders.int.test.ts` (fresh connection pool), E2E reload checks |
-| 14 Rejected batches cannot bypass re-verification | `src/features/cutting-orders/tests/recut.int.test.ts` › 14 |
-| 15 Failed transactions leave no partial state | gatekeeper › 15 |
+| 14 Rejected batches cannot bypass re-verification | `recut.int.test.ts` › 14 |
+| 15 Failed transactions leave no partial state | `gatekeeper.int.test.ts` › 15 |
 
 Additional coverage: direct-SQL bypass attempts against the triggers, CSRF, session expiry/revocation,
 login throttling, API-surface pinning (no write endpoints for audit data), exact-arithmetic property test
-for wastage rounding, and E2E for the full three-role workflow.
+for wastage rounding, E2E for the full three-role workflow, and an E2E regression test that sign-in /
+sign-out / sign-in-as-another-user updates the page without a manual refresh.
 
 ## Deployment
 
-The app targets **Vercel + a managed PostgreSQL** (e.g. Neon, Vercel Postgres, Supabase).
+The app targets **Vercel + a managed PostgreSQL** (e.g. Neon). The repository is an npm workspace whose
+Next.js app is in `frontend/`.
 
-1. Create a PostgreSQL database and copy its **pooled** connection string (and, optionally, the direct one).
-2. Push this repository to GitHub and import it in Vercel (framework preset: Next.js).
+1. Create a PostgreSQL database and copy its **pooled** connection string and its **direct** one.
+2. Import the GitHub repository in Vercel and set **Root Directory = `frontend`** (framework preset:
+   Next.js; keep "Include files outside the root directory" enabled). Vercel installs dependencies from the
+   repository root automatically.
 3. Set environment variables in Vercel → Settings → Environment Variables:
-   `DATABASE_URL` (pooled, `sslmode=require`), optionally `MIGRATION_DATABASE_URL` (direct),
-   `DEMO_MODE=true`, `DEMO_PASSWORD=<a strong demo password>`.
-4. Deploy. The `vercel-build` script runs `scripts/migrate.ts` before `next build`, so migrations are applied
-   on every deployment (they are idempotent).
-5. Seed once from your machine: `DATABASE_URL=<production url> DEMO_PASSWORD=<same password> npm run db:seed`
-   (idempotent — re-running only re-applies recipes and resets demo passwords).
-6. Verify: `GET /api/health` → `{"status":"ok","database":"up"}`, then sign in with each demo account.
+   `DATABASE_URL` (pooled, `sslmode=require`) and `MIGRATION_DATABASE_URL` (direct).
+4. Deploy. `frontend/package.json`'s `vercel-build` runs the migrations before `next build`, so every
+   deployment is migrated (migrations are idempotent).
+5. Seed once from your machine, with your own strong passwords:
+   ```powershell
+   $env:DATABASE_URL="<direct production url>"
+   $env:SEED_SUPERVISOR_PASSWORD="<password 1>"; $env:SEED_VERIFIER_PASSWORD="<password 2>"; $env:SEED_SEWING_PASSWORD="<password 3>"
+   npm run db:seed
+   ```
+   Re-running is safe: it re-applies the recipes and resets the three passwords.
+6. Verify: `GET /api/health` → `{"status":"ok","database":"up"}`, then sign in with each account.
 
-## Demo accounts
+## User accounts
 
-Seeded by `npm run db:seed`; all three share `DEMO_PASSWORD` (local default: `ApparelFlow-Demo-2026`).
-With `DEMO_MODE=true` the login page lists them with one-click sign-in buttons, and the header offers a
-persona switcher. Both perform a **real** logout + login through `/api/auth/login` — there is no
-client-side role switching.
+`npm run db:seed` creates one account per role. Each has its own e-mail and its own password, taken from
+the `SEED_*_PASSWORD` variables. The login page shows only the sign-in form — no credentials are displayed.
 
-| Role | E-mail | Can |
-|---|---|---|
-| Cutting Supervisor | `supervisor@apparelflow.demo` | Create orders, review outcomes and rejection reasons, submit re-cuts |
-| Cutting Verifier | `verifier@apparelflow.demo` | Count components, approve or reject, review verification history |
-| Sewing Supervisor | `sewing@apparelflow.demo` | See verified batches only, inspect counts and attribution, start assembly |
+| Role | E-mail | Local password (`.env.example`) | Can |
+|---|---|---|---|
+| Cutting Supervisor | `nimal.perera@apparelflow.lk` | `Supervisor@2026` | Create orders, review outcomes and rejection reasons, submit re-cuts |
+| Cutting Verifier | `kavindi.silva@apparelflow.lk` | `Verifier@2026` | Count components, approve or reject, review verification history |
+| Sewing Supervisor | `ruwan.fernando@apparelflow.lk` | `Sewing@2026` | See verified batches only, inspect counts and attribution, start assembly |
 
-The demo accounts are ordinary least-privilege users; the deployed demo password should be unique to the
-deployment and is the only credential exposed by the panel.
+The local passwords are development defaults only. Use different, strong values for any deployed
+environment and share them with evaluators separately.
 
 ## API reference
 
@@ -327,10 +351,10 @@ All endpoints return JSON; errors use `{ "error": { "code", "message", "details"
 
 ## Known limitations
 
-- Not yet deployed from this environment (no hosting credentials available); follow [Deployment](#deployment).
+- Not yet deployed; follow [Deployment](#deployment).
 - Sewing has a single state (`IN_PROGRESS`); completing assembly is out of scope.
 - The login throttle is per e-mail address; there is no IP-level rate limiting (would normally sit at the
   edge/WAF).
-- There is no user-administration UI; users are managed via the seed script.
+- There is no user-administration UI; the three accounts are managed by the seed script.
 - Recipes are read-only in the UI (seeded); a recipe edit would not change existing orders because expected
   quantities are snapshotted per attempt.

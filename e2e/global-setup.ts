@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { runMigrations } from "../src/lib/database/migrate";
-import * as schema from "../src/lib/database/schema";
-import { runSeed } from "../src/lib/database/seed";
+import { runMigrations } from "../backend/db/migrate";
+import * as schema from "../backend/db/schema";
+import { runSeed } from "../backend/db/seed";
 import { E2E_PASSWORDS } from "./credentials";
 
 /** Resets the dedicated E2E database: wipe schema, migrate, seed recipes + demo users. */

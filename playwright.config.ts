@@ -29,7 +29,7 @@ export default defineConfig({
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] }, testMatch: /responsive\.spec\.ts/ },
   ],
   webServer: {
-    command: `npm run build && npx next start -p ${PORT}`,
+    command: `npm run build && npx next start frontend -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     timeout: 300_000,
     reuseExistingServer: false,

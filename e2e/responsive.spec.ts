@@ -24,7 +24,9 @@ for (const { role, path } of pages) {
 
 test("login page fits the viewport and passes axe", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByRole("heading", { name: "Demo accounts for evaluators" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  // Credentials are never displayed on the login page.
+  await expect(page.getByText(/password is|share the password/i)).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   await expectNoA11yViolations(page);
 });

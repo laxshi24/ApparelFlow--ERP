@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
-import { SEED_USERS } from "../src/lib/database/seed";
+import { SEED_USERS } from "../backend/db/seed";
 import { E2E_PASSWORDS } from "./credentials";
 
 export const ROLES = {

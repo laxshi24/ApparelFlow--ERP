@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { SEED_USERS } from "../backend/db/seed";
+import { E2E_PASSWORDS } from "./credentials";
 import { expectNoA11yViolations, signInAs } from "./helpers";
 
 test("anonymous visitors are redirected to sign in and APIs return 401", async ({ page, request }) => {
@@ -39,6 +41,42 @@ test("a non-verifier gets 403 from the approval API even with a forged body", as
 
   const crossSite = await page.request.post(`/api/verification/${order.id}/approve`, { headers: { origin: "https://evil.example" } });
   expect(crossSite.status()).toBe(403);
+});
+
+test("sign-in and sign-out update the page immediately, without a manual refresh", async ({ page }) => {
+  const [supervisor, verifier] = ["cutting_supervisor", "cutting_verifier"] as const;
+  const email = (role: string) => SEED_USERS.find((u) => u.role === role)!.email;
+  const banner = page.getByRole("banner");
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email(supervisor));
+  await page.getByLabel("Password").fill("not-the-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByText("Invalid email or password")).toBeVisible();
+
+  await page.getByLabel("Password").fill(E2E_PASSWORDS[supervisor]);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(banner.getByText("Nimal Perera")).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(banner).toBeHidden();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+
+  // Same tab, no reload: a different user must see their own role, not the cached previous session.
+  await page.getByLabel("Email").fill(email(verifier));
+  await page.getByLabel("Password").fill(E2E_PASSWORDS[verifier]);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/verification$/);
+  await expect(banner.getByText("Kavindi Silva")).toBeVisible();
+  await expect(banner.getByText("Nimal Perera")).toHaveCount(0);
+
+  // After sign-out, protected pages are no longer reachable from history.
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login/);
 });
 
 test("session cookie is HttpOnly and SameSite=Lax", async ({ page }) => {

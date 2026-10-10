@@ -3,23 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "next dev frontend",
+    "build": "next build frontend",
+    "start": "next start frontend",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit",
-    "db:start": "tsx scripts/dev-db.ts",
+    "typecheck": "next typegen frontend && tsc --noEmit",
+    "db:start": "tsx backend/db/scripts/dev-db.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts",
+    "db:migrate": "tsx backend/db/scripts/migrate.ts",
+    "db:seed": "tsx backend/db/scripts/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:all": "vitest run",
     "test:e2e": "playwright test",
-    "vercel-build": "tsx scripts/migrate.ts && next build"
+    "vercel-build": "tsx backend/db/scripts/migrate.ts && next build frontend"
   },
   "dependencies": {
+    "@next/env": "^16.4.0",
     "@node-rs/argon2": "^2.2.2",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.53.0",
@@ -50,5 +51,8 @@
   },
   "engines": {
     "node": ">=20.9"
-  }
+  },
+  "workspaces": [
+    "frontend"
+  ]
 }
