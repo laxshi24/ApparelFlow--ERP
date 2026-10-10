@@ -8,7 +8,7 @@ import postgres from "postgres";
 import { runMigrations } from "@/lib/database/migrate";
 import * as schema from "@/lib/database/schema";
 import { runSeed } from "@/lib/database/seed";
-import { TEST_DEMO_PASSWORD } from "./constants";
+import { TEST_PASSWORDS } from "./constants";
 
 export default async function setup() {
   const url = process.env.TEST_DATABASE_URL;
@@ -25,7 +25,7 @@ export default async function setup() {
 
   const client = postgres(url, { max: 1, onnotice: () => {} });
   try {
-    await runSeed(drizzle(client, { schema }), { demoPassword: TEST_DEMO_PASSWORD });
+    await runSeed(drizzle(client, { schema }), { passwords: TEST_PASSWORDS });
   } finally {
     await client.end();
   }

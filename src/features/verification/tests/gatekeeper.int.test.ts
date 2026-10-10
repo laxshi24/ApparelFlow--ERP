@@ -10,7 +10,7 @@ import { db } from "@/lib/database/client";
 import { auditEvents, cuttingOrders, users, verificationItems, verificationLogs } from "@/lib/database/schema";
 import { resetTransactionalData } from "@/test/db";
 import { createOrder } from "@/test/fixtures";
-import { call, demoUser, loginAs } from "@/test/http";
+import { call, loginAs, seedUser } from "@/test/http";
 import { approve, buildCounts, getItems, reject, saveCounts } from "@/test/verification-helpers";
 import { saveCountsHandler } from "../server/verification.handlers";
 
@@ -28,8 +28,8 @@ beforeEach(async () => {
     loginAs("sewing_supervisor"),
   ]);
   const all = await db().select({ id: users.id, email: users.email }).from(users);
-  verifierId = all.find((u) => u.email === demoUser("cutting_verifier").email)!.id;
-  supervisorId = all.find((u) => u.email === demoUser("cutting_supervisor").email)!.id;
+  verifierId = all.find((u) => u.email === seedUser("cutting_verifier").email)!.id;
+  supervisorId = all.find((u) => u.email === seedUser("cutting_supervisor").email)!.id;
 });
 
 const orderRow = async (id: string) => (await db().select().from(cuttingOrders).where(eq(cuttingOrders.id, id)))[0];

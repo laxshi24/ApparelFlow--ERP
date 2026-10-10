@@ -4,9 +4,8 @@ import { login, logout, me } from "@/features/authentication/server/auth.handler
 import { MAX_FAILED_LOGINS } from "@/features/authentication/server/login";
 import { db } from "@/lib/database/client";
 import { sessions, users } from "@/lib/database/schema";
-import { TEST_DEMO_PASSWORD } from "@/test/constants";
 import { resetTransactionalData } from "@/test/db";
-import { call, demoUser, loginAs } from "@/test/http";
+import { call, loginAs, seedUser } from "@/test/http";
 
 beforeEach(resetTransactionalData);
 
@@ -15,7 +14,7 @@ describe("POST /api/auth/login", () => {
     "logs %s in with the role stored in the database",
     async (role) => {
       const { status, body, response } = await call(login, "POST", "/api/auth/login", {
-        body: { email: demoUser(role).email, password: TEST_DEMO_PASSWORD },
+        body: { email: seedUser(role).email, password: seedUser(role).password },
       });
       expect(status).toBe(200);
       expect(body.user.role).toBe(role);
@@ -30,21 +29,21 @@ describe("POST /api/auth/login", () => {
 
   it("ignores privilege fields in the request body", async () => {
     const { body } = await call(login, "POST", "/api/auth/login", {
-      body: { email: demoUser("sewing_supervisor").email, password: TEST_DEMO_PASSWORD, role: "cutting_verifier" },
+      body: { email: seedUser("sewing_supervisor").email, password: seedUser("sewing_supervisor").password, role: "cutting_verifier" },
     });
     expect(body.user.role).toBe("sewing_supervisor");
   });
 
   it("normalises email case and whitespace", async () => {
     const { status } = await call(login, "POST", "/api/auth/login", {
-      body: { email: `  ${demoUser("cutting_verifier").email.toUpperCase()} `, password: TEST_DEMO_PASSWORD },
+      body: { email: `  ${seedUser("cutting_verifier").email.toUpperCase()} `, password: seedUser("cutting_verifier").password },
     });
     expect(status).toBe(200);
   });
 
   it("returns the same 401 for a wrong password and an unknown email", async () => {
     const wrong = await call(login, "POST", "/api/auth/login", {
-      body: { email: demoUser("cutting_verifier").email, password: "wrong-password" },
+      body: { email: seedUser("cutting_verifier").email, password: "wrong-password" },
     });
     const unknown = await call(login, "POST", "/api/auth/login", {
       body: { email: "nobody@apparelflow.demo", password: "wrong-password" },
@@ -65,7 +64,7 @@ describe("POST /api/auth/login", () => {
 
   it("rejects cross-site login attempts (CSRF)", async () => {
     const { status, body } = await call(login, "POST", "/api/auth/login", {
-      body: { email: demoUser("cutting_verifier").email, password: TEST_DEMO_PASSWORD },
+      body: { email: seedUser("cutting_verifier").email, password: seedUser("cutting_verifier").password },
       headers: { origin: "https://evil.example" },
     });
     expect(status).toBe(403);
@@ -73,11 +72,11 @@ describe("POST /api/auth/login", () => {
   });
 
   it(`throttles after ${MAX_FAILED_LOGINS} failed attempts`, async () => {
-    const email = demoUser("cutting_supervisor").email;
+    const email = seedUser("cutting_supervisor").email;
     for (let i = 0; i < MAX_FAILED_LOGINS; i++) {
       await call(login, "POST", "/api/auth/login", { body: { email, password: "nope" } });
     }
-    const { status } = await call(login, "POST", "/api/auth/login", { body: { email, password: TEST_DEMO_PASSWORD } });
+    const { status } = await call(login, "POST", "/api/auth/login", { body: { email, password: seedUser("cutting_supervisor").password } });
     expect(status).toBe(429);
   });
 });
@@ -87,7 +86,7 @@ describe("session lifecycle", () => {
     const cookie = await loginAs("cutting_verifier");
     const { status, body } = await call(me, "GET", "/api/auth/me", { cookie });
     expect(status).toBe(200);
-    expect(body.user.email).toBe(demoUser("cutting_verifier").email);
+    expect(body.user.email).toBe(seedUser("cutting_verifier").email);
   });
 
   it("rejects requests without a session, or with a forged token", async () => {
@@ -105,7 +104,7 @@ describe("session lifecycle", () => {
 
   it("rejects expired sessions", async () => {
     const cookie = await loginAs("sewing_supervisor");
-    const [u] = await db().select().from(users).where(eq(users.email, demoUser("sewing_supervisor").email));
+    const [u] = await db().select().from(users).where(eq(users.email, seedUser("sewing_supervisor").email));
     await db().update(sessions).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(sessions.userId, u.id));
     expect((await call(me, "GET", "/api/auth/me", { cookie })).status).toBe(401);
   });

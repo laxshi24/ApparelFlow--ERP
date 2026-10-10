@@ -31,8 +31,9 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow_test
       E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/apparelflow_e2e
-      DEMO_MODE: "true"
-      DEMO_PASSWORD: ci-demo-password-2026
+      SEED_SUPERVISOR_PASSWORD: ci-supervisor-pass
+      SEED_VERIFIER_PASSWORD: ci-verifier-pass
+      SEED_SEWING_PASSWORD: ci-sewing-pass-1
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

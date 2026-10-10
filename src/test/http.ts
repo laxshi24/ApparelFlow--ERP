@@ -5,8 +5,8 @@
 import { NextRequest } from "next/server";
 import { login } from "@/features/authentication/server/auth.handlers";
 import type { UserRole } from "@/lib/database/schema";
-import { DEMO_USERS } from "@/lib/database/seed";
-import { TEST_DEMO_PASSWORD } from "./constants";
+import { SEED_USERS } from "@/lib/database/seed";
+import { TEST_PASSWORDS } from "./constants";
 
 export const BASE_URL = "http://localhost:3000";
 
@@ -43,16 +43,16 @@ export async function call<P = Record<string, never>>(
   return { status: response.status, body: text ? JSON.parse(text) : null, response };
 }
 
-export function demoUser(role: UserRole) {
-  const user = DEMO_USERS.find((u) => u.role === role);
-  if (!user) throw new Error(`No demo user for ${role}`);
-  return user;
+export function seedUser(role: UserRole) {
+  const user = SEED_USERS.find((u) => u.role === role);
+  if (!user) throw new Error(`No seeded user for ${role}`);
+  return { ...user, password: TEST_PASSWORDS[role] };
 }
 
 /** Logs in through the real login handler and returns the session cookie header value. */
 export async function loginAs(role: UserRole): Promise<string> {
   const { status, response } = await call(login, "POST", "/api/auth/login", {
-    body: { email: demoUser(role).email, password: TEST_DEMO_PASSWORD },
+    body: { email: seedUser(role).email, password: seedUser(role).password },
   });
   if (status !== 200) throw new Error(`Login as ${role} failed with ${status}`);
   const setCookie = response.headers.get("set-cookie") ?? "";

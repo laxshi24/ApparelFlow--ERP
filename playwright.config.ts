@@ -6,12 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
  * backed by the dedicated E2E_DATABASE_URL database, which global-setup wipes, migrates and seeds.
  */
 const PORT = 3100;
-const E2E_DEMO_PASSWORD = "E2E-Demo-Password-2026";
 const databaseUrl = process.env.E2E_DATABASE_URL;
 if (!databaseUrl) throw new Error("E2E_DATABASE_URL is not set (see .env.example)");
 if (databaseUrl === process.env.DATABASE_URL) throw new Error("E2E_DATABASE_URL must differ from DATABASE_URL: E2E runs wipe it.");
-
-process.env.E2E_DEMO_PASSWORD = E2E_DEMO_PASSWORD;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -40,8 +37,6 @@ export default defineConfig({
     stderr: "pipe",
     env: {
       DATABASE_URL: databaseUrl,
-      DEMO_MODE: "true",
-      DEMO_PASSWORD: E2E_DEMO_PASSWORD,
       NEXT_TELEMETRY_DISABLED: "1",
     },
   },

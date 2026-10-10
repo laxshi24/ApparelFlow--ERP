@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { runMigrations } from "../src/lib/database/migrate";
 import * as schema from "../src/lib/database/schema";
 import { runSeed } from "../src/lib/database/seed";
+import { E2E_PASSWORDS } from "./credentials";
 
 /** Resets the dedicated E2E database: wipe schema, migrate, seed recipes + demo users. */
 export default async function globalSetup() {
@@ -17,7 +18,7 @@ export default async function globalSetup() {
   await runMigrations(url);
   const client = postgres(url, { max: 1, onnotice: () => {} });
   try {
-    await runSeed(drizzle(client, { schema }), { demoPassword: process.env.E2E_DEMO_PASSWORD! });
+    await runSeed(drizzle(client, { schema }), { passwords: E2E_PASSWORDS });
   } finally {
     await client.end();
   }

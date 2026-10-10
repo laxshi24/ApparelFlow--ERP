@@ -42,15 +42,22 @@ export const SEED_RECIPES = [
   },
 ] as const;
 
-export const DEMO_USERS: readonly { email: string; fullName: string; role: UserRole }[] = [
-  { email: "supervisor@apparelflow.demo", fullName: "Nimal Perera", role: "cutting_supervisor" },
-  { email: "verifier@apparelflow.demo", fullName: "Kavindi Silva", role: "cutting_verifier" },
-  { email: "sewing@apparelflow.demo", fullName: "Ruwan Fernando", role: "sewing_supervisor" },
+/** One account per role. Passwords are never in code: they are supplied to `runSeed` (from env vars). */
+export const SEED_USERS: readonly { email: string; fullName: string; role: UserRole }[] = [
+  { email: "nimal.perera@apparelflow.lk", fullName: "Nimal Perera", role: "cutting_supervisor" },
+  { email: "kavindi.silva@apparelflow.lk", fullName: "Kavindi Silva", role: "cutting_verifier" },
+  { email: "ruwan.fernando@apparelflow.lk", fullName: "Ruwan Fernando", role: "sewing_supervisor" },
 ];
 
-export async function runSeed(db: SeedDb, options: { demoPassword: string }): Promise<void> {
-  if (options.demoPassword.length < 10) throw new Error("Demo password must be at least 10 characters");
-  const passwordHash = await hashPassword(options.demoPassword);
+export type SeedPasswords = Record<UserRole, string>;
+
+export async function runSeed(db: SeedDb, options: { passwords: SeedPasswords }): Promise<void> {
+  const hashes = new Map<UserRole, string>();
+  for (const u of SEED_USERS) {
+    const password = options.passwords[u.role];
+    if (!password || password.length < 10) throw new Error(`Password for ${u.role} must be at least 10 characters`);
+    hashes.set(u.role, await hashPassword(password));
+  }
 
   await db.transaction(async (tx) => {
     for (const r of SEED_RECIPES) {
@@ -86,7 +93,8 @@ export async function runSeed(db: SeedDb, options: { demoPassword: string }): Pr
       }
     }
 
-    for (const u of DEMO_USERS) {
+    for (const u of SEED_USERS) {
+      const passwordHash = hashes.get(u.role)!;
       await tx
         .insert(users)
         .values({ email: u.email, fullName: u.fullName, role: u.role, passwordHash })

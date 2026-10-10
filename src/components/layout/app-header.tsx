@@ -1,6 +1,5 @@
 import { Scissors } from "lucide-react";
 import Link from "next/link";
-import { getDemoConfig } from "@/features/authentication/server/demo";
 import { requirePageUser } from "@/lib/auth/guards";
 import { can, ROLE_HOME, ROLE_LABELS, type Permission } from "@/lib/auth/permissions";
 import { NavLinks, type NavItem } from "./nav-links";
@@ -18,7 +17,6 @@ const NAV: (NavItem & { permission: Permission })[] = [
 export async function AppHeader() {
   const { user } = await requirePageUser();
   const items = NAV.filter((item) => can(user.role, item.permission));
-  const demo = getDemoConfig();
 
   return (
     <header className="bg-header text-white">
@@ -35,7 +33,7 @@ export async function AppHeader() {
             <p className="text-sm font-semibold">{user.fullName}</p>
             <p className="text-xs text-slate-300">{ROLE_LABELS[user.role]}</p>
           </div>
-          <SessionControls currentEmail={user.email} demo={demo} />
+          <SessionControls />
         </div>
       </div>
     </header>

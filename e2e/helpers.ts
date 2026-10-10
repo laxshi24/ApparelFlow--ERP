@@ -1,21 +1,25 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
+import { SEED_USERS } from "../src/lib/database/seed";
+import { E2E_PASSWORDS } from "./credentials";
 
 export const ROLES = {
-  supervisor: "Cutting Supervisor",
-  verifier: "Cutting Verifier",
-  sewing: "Sewing Supervisor",
+  supervisor: { label: "Cutting Supervisor", role: "cutting_supervisor" },
+  verifier: { label: "Cutting Verifier", role: "cutting_verifier" },
+  sewing: { label: "Sewing Supervisor", role: "sewing_supervisor" },
 } as const;
 
-/** Signs in through the evaluator demo panel (a real /api/auth/login request). */
-export async function signInAs(page: Page, role: keyof typeof ROLES) {
+/** Signs in through the real login form, exactly as a user would (no page refresh). */
+export async function signInAs(page: Page, who: keyof typeof ROLES) {
+  const { label, role } = ROLES[who];
+  const email = SEED_USERS.find((u) => u.role === role)!.email;
   await page.context().clearCookies();
   await page.goto("/login");
-  await page.getByRole("button", { name: new RegExp(`Sign in as ${ROLES[role]}`) }).click();
-  // The login page itself lists every role name, so wait for the redirect, then check the header's
-  // role caption (the header's persona <select> also repeats role names in its options).
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(E2E_PASSWORDS[role]);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
-  await expect(page.getByRole("banner").locator("p").filter({ hasText: new RegExp(`^${ROLES[role]}$`) })).toBeVisible();
+  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible();
 }
 
 /** Fails on serious/critical WCAG 2.1 A/AA violations (including colour contrast). */
